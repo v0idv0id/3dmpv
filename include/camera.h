@@ -127,7 +127,7 @@ private:
         Front = glm::normalize(front);
         // Also re-calculate the Right and Up vector
         Right = glm::normalize(glm::cross(Front, WorldUp));  // Normalize the vectors, because their length gets closer to 0 the more you look up or down which results in slower movement.
-        Up    = glm::normalize(glm::cross(Right, Front));
+        Up    = glm::normalize(glm::cross(Right, Front)); // MH Hook is here. UP is NOT RxF  - it is a function of  the YAW!
     }
 };
 #endif

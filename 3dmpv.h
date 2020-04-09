@@ -1,7 +1,6 @@
 // GNU GPLv3
 // Copyright (c) 2020 v0idv0id - Martin Willner - lvslinux@gmail.com
 
-
 #ifndef __MPVIDEOCUBE_H
 #define __MPVIDEOCUBE_H
 
@@ -23,12 +22,16 @@ int fbo_height = 600;
 GLFWwindow *window = NULL;
 mpv_handle *mpv;
 mpv_render_context *mpv_ctx;
-
+mpv_opengl_fbo mpv_fbo;
 unsigned int video_framebuffer;
 unsigned int video_textureColorbuffer;
 
 unsigned int screen_framebuffer;
 unsigned int screen_textureColorbuffer;
+
+unsigned int screen_rbo;
+unsigned int video_rbo;
+
 int nonAffine(float *vertex);
 
 float deltaTime, lastFrame;
@@ -92,23 +95,55 @@ float cubeVertices[] = {
 //     1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
 //     1.0f, 1.0f, 0.0f, 1.0f, 1.0f};
 
-
 float quadVertices[36];
 float quadVertices_orig[36] = {
     // positions 3D        // texCoords 3D      // texCoords 3D original
-    -1.0f, -1.0f, 0.0f,     0.0f, 0.0f, 1.0f,   0.0f, 0.0f, 1.0f,
-     1.0f, -1.0f, 0.0f,     1.0f, 0.0f, 1.0f,   1.0f, 0.0f, 1.0f,
-     1.0f,  1.0f, 0.0f,     1.0f, 1.0f, 1.0f,   1.0f, 1.0f, 1.0f,
-    -1.0f,  1.0f, 0.0f,     0.0f, 1.0f, 1.0f,   0.0f, 1.0f, 1.0f,
+    -1.0f,
+    -1.0f,
+    0.0f,
+    0.0f,
+    0.0f,
+    1.0f,
+    0.0f,
+    0.0f,
+    1.0f,
+    1.0f,
+    -1.0f,
+    0.0f,
+    1.0f,
+    0.0f,
+    1.0f,
+    1.0f,
+    0.0f,
+    1.0f,
+    1.0f,
+    1.0f,
+    0.0f,
+    1.0f,
+    1.0f,
+    1.0f,
+    1.0f,
+    1.0f,
+    1.0f,
+    -1.0f,
+    1.0f,
+    0.0f,
+    0.0f,
+    1.0f,
+    1.0f,
+    0.0f,
+    1.0f,
+    1.0f,
 };
 unsigned int quadIndices[] = {
     0, 1, 3, 1, 2, 3};
 
-int _id=0;
+int _id = 0;
+int activecorner = -1;
+float inline inCircleN(float x, float y, float r, float x0, float y0);
 
 static void on_mpv_render_update(void *ctx);
 static void on_mpv_events(void *ctx);
-
-
+void framebuffer_size_callback(GLFWwindow *window, int width, int height);
 
 #endif
