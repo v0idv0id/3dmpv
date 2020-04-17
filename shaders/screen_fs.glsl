@@ -19,6 +19,9 @@ void main() {
     gl_FragColor = vec4(1, 0, 1, 1);
   }  else if(x > 0.5 && x < 0.51) {
     gl_FragColor = vec4(0, 0, 1, 1);
+  } else if(y > 0.5 && y < 0.51) {
+    gl_FragColor = vec4(0, 1, 1, 1);
+
   }
   
   

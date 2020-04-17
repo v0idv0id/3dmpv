@@ -1,8 +1,8 @@
 
 # A very NAIVE Makefile
 
-CFLAGS=-Iinclude/ -std=c++11 -Wall -pedantic -Werror
-LDFLAGS=-lglfw -ldl -lmpv
+CFLAGS=-g -Iinclude/ -std=c++11 #-Wall -pedantic -Werror
+LDFLAGS= -lglfw -ldl -lmpv -lpthread
 
 all:
 	mkdir -p build/

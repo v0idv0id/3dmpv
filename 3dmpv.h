@@ -7,22 +7,27 @@
 #include <iostream>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-
+#include <unistd.h>
 #include <mpv/client.h>
 #include <mpv/render_gl.h>
 
 #include <shader.h>
 #include <camera.h>
+#include <thread>
 
 int window_width = 800;
 int window_height = 600;
+int screen_width = 800;
+int screen_height = 600;
 int fbo_width = 800;
 int fbo_height = 600;
 
+int wakeup = 0;
 GLFWwindow *window = NULL;
 mpv_handle *mpv;
 mpv_render_context *mpv_ctx;
 mpv_opengl_fbo mpv_fbo;
+mpv_render_param params_fbo[3];
 unsigned int video_framebuffer;
 unsigned int video_textureColorbuffer;
 
@@ -31,6 +36,10 @@ unsigned int screen_textureColorbuffer;
 
 unsigned int screen_rbo;
 unsigned int video_rbo;
+float currentFrame;
+
+unsigned int cubeVAO, cubeVBO;
+unsigned int quadVAO, quadVBO, quadEBO;
 
 int nonAffine(float *vertex);
 
@@ -40,6 +49,7 @@ Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
 
 static void *get_proc_address(void *ctx, const char *name);
 void processGLFWInput(GLFWwindow *window);
+void texture_task(std::string);
 
 float cubeVertices[] = {
     // positions          // texture Coords
