@@ -27,8 +27,8 @@ unsigned int video_framebuffer;
 unsigned int video_textureColorbuffer;
 
 float currentFrame;
-bool animation=false;
-bool showfx=false;
+bool animation=true;
+bool showfx=true;
 float vignette=0;
 unsigned int cubeVAO, cubeVBO;
 unsigned int quadVAO, quadVBO, quadEBO;

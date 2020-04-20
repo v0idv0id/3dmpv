@@ -182,7 +182,6 @@ int main(int argc, char const *argv[])
 
         glEnable(GL_PROGRAM_POINT_SIZE);
         glEnable(GL_MULTISAMPLE);
-
         if (showfx)
         {
             fxShader->use();
@@ -193,8 +192,8 @@ int main(int argc, char const *argv[])
         }
         else
         {
-            screenShader->setFloat("vignette", vignette);
             screenShader->use();
+            screenShader->setFloat("vignette", vignette);
             glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
         }
         // -----
@@ -259,14 +258,14 @@ void processGLFWInput(GLFWwindow *window)
         animation = !animation;
     if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS)
         memcpy(quadVertices, quadVertices_orig, sizeof(quadVertices));
-    if (glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS)
+    if (glfwGetKey(window, GLFW_KEY_O) == GLFW_PRESS)
         showfx = !showfx;
     if (glfwGetKey(window, GLFW_KEY_V) == GLFW_PRESS)
-        vignette += 0.1;
+        vignette += 0.2;
     if (glfwGetKey(window, GLFW_KEY_B) == GLFW_PRESS)
     {
         if (vignette > 0)
-            vignette -= 0.1;
+            vignette -= 0.2;
     }
 }
 
