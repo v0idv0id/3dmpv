@@ -45,7 +45,7 @@ I recommend compile mpv from scratch using https://github.com/mpv-player/mpv-bui
   * ``` ./rundemo-video-2160p-60p.sh ``` (a 4K video @ 60fps)
   * ``` ./rundemo-video-1080p-60p.sh ``` (a FullHD video  @ 60fps)
   * ``` ./rundemo-youtube.sh ```  (This only works if youtube-dl is installed and working!)
-  * ``` ./mpvideocube myvideofile.mp4 ``` (try with your own video files)
+  * ``` ./3dmpv myvideofile.mp4 ``` (try with your own video files)
 
 ### Keyboard and Mouse
 * [O] Toggle Grid and Corner overlay
