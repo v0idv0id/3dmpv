@@ -1,8 +1,8 @@
 // GNU GPLv3
 // Copyright (c) 2020 v0idv0id - Martin Willner - lvslinux@gmail.com
 
-#ifndef __MPVIDEOCUBE_H
-#define __MPVIDEOCUBE_H
+#ifndef __3DMPV_H
+#define __3DMPV_H
 
 #include <iostream>
 #include <glad/glad.h>
@@ -12,15 +12,10 @@
 #include <mpv/render_gl.h>
 
 #include <shader.h>
-#include <camera.h>
 #include <thread>
 
 int window_width = 800;
 int window_height = 600;
-int screen_width = 800;
-int screen_height = 600;
-int fbo_width = 800;
-int fbo_height = 600;
 
 int wakeup = 0;
 GLFWwindow *window = NULL;
@@ -31,13 +26,10 @@ mpv_render_param params_fbo[3];
 unsigned int video_framebuffer;
 unsigned int video_textureColorbuffer;
 
-unsigned int screen_framebuffer;
-unsigned int screen_textureColorbuffer;
-
-unsigned int screen_rbo;
-unsigned int video_rbo;
 float currentFrame;
-
+bool animation=false;
+bool showfx=false;
+float vignette=0;
 unsigned int cubeVAO, cubeVBO;
 unsigned int quadVAO, quadVBO, quadEBO;
 
@@ -45,65 +37,10 @@ int nonAffine(float *vertex);
 
 float deltaTime, lastFrame;
 
-Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
 
 static void *get_proc_address(void *ctx, const char *name);
 void processGLFWInput(GLFWwindow *window);
 void texture_task(std::string);
-
-float cubeVertices[] = {
-    // positions          // texture Coords
-    -0.5f, -0.5f, -0.5f, 0.0f, 0.0f,
-    0.5f, -0.5f, -0.5f, 1.0f, 0.0f,
-    0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
-    0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
-    -0.5f, 0.5f, -0.5f, 0.0f, 1.0f,
-    -0.5f, -0.5f, -0.5f, 0.0f, 0.0f,
-
-    -0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
-    0.5f, -0.5f, 0.5f, 1.0f, 0.0f,
-    0.5f, 0.5f, 0.5f, 1.0f, 1.0f,
-    0.5f, 0.5f, 0.5f, 1.0f, 1.0f,
-    -0.5f, 0.5f, 0.5f, 0.0f, 1.0f,
-    -0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
-
-    -0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
-    -0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
-    -0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
-    -0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
-    -0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
-    -0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
-
-    0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
-    0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
-    0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
-    0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
-    0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
-    0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
-
-    -0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
-    0.5f, -0.5f, -0.5f, 1.0f, 1.0f,
-    0.5f, -0.5f, 0.5f, 1.0f, 0.0f,
-    0.5f, -0.5f, 0.5f, 1.0f, 0.0f,
-    -0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
-    -0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
-
-    -0.5f, 0.5f, -0.5f, 0.0f, 1.0f,
-    0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
-    0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
-    0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
-    -0.5f, 0.5f, 0.5f, 0.0f, 0.0f,
-    -0.5f, 0.5f, -0.5f, 0.0f, 1.0f};
-
-// float quadVertices[] = {
-//     // positions         // texCoords
-//     -1.0f, 1.0f, 0.0f, 0.0f, 1.0f,
-//     -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
-//     1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
-
-//     -1.0f, 1.0f, 0.0f, 0.0f, 1.0f,
-//     1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
-//     1.0f, 1.0f, 0.0f, 1.0f, 1.0f};
 
 float quadVertices[36];
 float quadVertices_orig[36] = {

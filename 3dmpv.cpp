@@ -14,16 +14,14 @@ int main(int argc, char const *argv[])
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_SAMPLES, 8);
+    glfwWindowHint(GLFW_SAMPLES, 4);
 
-    GLFWmonitor *primary = glfwGetPrimaryMonitor();
-    const GLFWvidmode *mode = glfwGetVideoMode(primary);
-    window_width = mode->width;
-    window_height = mode->height;
-    screen_width = window_width;
-    screen_height = window_height;
-
-    if ((window = glfwCreateWindow(window_width, window_height, "MPVideoCube", NULL, NULL)) == NULL)
+    // GLFWmonitor *primary = glfwGetPrimaryMonitor();
+    // const GLFWvidmode *mode = glfwGetVideoMode(primary);
+    // window_width = mode->width;
+    // window_height = mode->height;
+    // if ((window = glfwCreateWindow(window_width, window_height, "3dmpv",  glfwGetPrimaryMonitor(), NULL)) == NULL) // for fullscreen windows
+    if ((window = glfwCreateWindow(window_width, window_height, "3dmpv", NULL, NULL)) == NULL)
     {
         std::cout << "ERROR::GLFW::Failed to create window" << std::endl;
         return -1;
@@ -31,7 +29,6 @@ int main(int argc, char const *argv[])
 
     glfwMakeContextCurrent(window);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
     {
         std::cout << "ERROR::GLAD::Failed to initialize GLAD" << std::endl;
@@ -71,38 +68,22 @@ int main(int argc, char const *argv[])
     mpv_set_wakeup_callback(mpv, on_mpv_events, NULL);
     mpv_render_context_set_update_callback(mpv_ctx, on_mpv_render_update, NULL);
 
-    // const char *cmd[] = {"loadfile", argv[1], NULL};
-    const char *cmd[] = {"loadlist", argv[1], NULL};
+    const char *cmd[] = {"loadfile", argv[1], NULL};
     mpv_command(mpv, cmd);
     mpv_set_option_string(mpv, "gpu-api", "opengl");
     mpv_set_option_string(mpv, "hwdec", "auto");
-    mpv_set_option_string(mpv, "msg-level", "debug");
     mpv_set_option_string(mpv, "vd-lavc-dr", "yes");
     mpv_set_option_string(mpv, "loop", "");
     mpv_set_option_string(mpv, "load-unsafe-playlists", "");
-    mpv_set_option_string(mpv, "video-timing-offset", "0");
     mpv_set_option_string(mpv, "terminal", "yes");
-    mpv_set_option_string(mpv, "gpu-debug", "");
 
     // SHADER creation
 
-    Shader cubeShader("shaders/cube_vs.glsl", "shaders/cube_fs.glsl");
     Shader *screenShader = new Shader("shaders/screen_vs.glsl", "shaders/screen_fs.glsl");
+    Shader *fxShader = new Shader("shaders/fx_vs.glsl", "shaders/fx_fs.glsl");
     Shader pointShader("shaders/point_vs.glsl", "shaders/point_fs.glsl");
-    Shader fxShader("shaders/fx_vs.glsl", "shaders/fx_fs.glsl");
 
     memcpy(quadVertices, quadVertices_orig, sizeof(quadVertices));
-
-    // CUBE Vertex Array Object (VAO) and Vertex Buffer Object (VBO)
-    glGenVertexArrays(1, &cubeVAO);
-    glGenBuffers(1, &cubeVBO);
-    glBindVertexArray(cubeVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVertices), &cubeVertices, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)0); // coordinates
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)(3 * sizeof(float))); //texture
 
     // SCREEN QUAD
     glGenVertexArrays(1, &quadVAO);
@@ -136,6 +117,17 @@ int main(int argc, char const *argv[])
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, video_textureColorbuffer, 0);
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
         std::cout << "ERROR::FRAMEBUFFER:: VIDEO Framebuffer #" << video_framebuffer << "is not complete!" << std::endl;
+    glEnable(GL_MULTISAMPLE);
+
+    mpv_fbo.fbo = static_cast<int>(video_framebuffer);
+    mpv_fbo.internal_format = 0;
+    mpv_fbo.w = window_width;
+    mpv_fbo.h = window_height;
+
+    int flip_y{0};
+    params_fbo[0] = {MPV_RENDER_PARAM_OPENGL_FBO, &mpv_fbo};
+    params_fbo[1] = {MPV_RENDER_PARAM_FLIP_Y, &flip_y};
+    params_fbo[2] = {MPV_RENDER_PARAM_INVALID, nullptr};
 
     while (!glfwWindowShouldClose(window))
     {
@@ -143,7 +135,7 @@ int main(int argc, char const *argv[])
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
-        if (1)
+        if (animation)
         {
             quadVertices[0] = sin(currentFrame) / 4. - 0.5;
             quadVertices[1] = cos(currentFrame) / 4. - 0.5;
@@ -162,16 +154,23 @@ int main(int argc, char const *argv[])
         {
             if ((mpv_render_context_update(mpv_ctx) & MPV_RENDER_UPDATE_FRAME))
             {
-
-                mpv_render_context_render(mpv_ctx, params_fbo); // this "renders" to the video_framebuffer "linked by ID" in the params_fbo - BLOCKING
-                glViewport(0, 0, window_width, window_height);  // we have to set the Viewport on every cycle because mpv_render_context_render internally rescales the fb of the context(?!)...
+                mpv_render_context_render(mpv_ctx, params_fbo);
+                glViewport(0, 0, window_width, window_height);
             }
         }
 
-        glBindFramebuffer(GL_FRAMEBUFFER, 0); // <-- BIND THE DEFAULT FBO
-        glDisable(GL_DEPTH_TEST);             // NO DEPTH TEST!
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glDisable(GL_DEPTH_TEST);
         glEnable(GL_MULTISAMPLE);
-        glClearColor(0.0f, 0.0f, 1.0f, 1.0f);
+        if (showfx)
+        {
+            glClearColor(0.0f, 0.0f, 1.0f, 1.0f);
+        }
+        else
+        {
+            glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        }
+
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glBindVertexArray(quadVAO);
@@ -179,16 +178,25 @@ int main(int argc, char const *argv[])
         glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
 
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, video_textureColorbuffer); // <-- SCREEN Colorbuffer IS THE TEXTURE
+        glBindTexture(GL_TEXTURE_2D, video_textureColorbuffer);
 
         glEnable(GL_PROGRAM_POINT_SIZE);
+        glEnable(GL_MULTISAMPLE);
 
-        screenShader->use();
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        if (showfx)
+        {
+            fxShader->use();
+            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
-        pointShader.use();
-        glDrawElements(GL_POINTS, 6, GL_UNSIGNED_INT, 0);
-
+            pointShader.use();
+            glDrawElements(GL_POINTS, 6, GL_UNSIGNED_INT, 0);
+        }
+        else
+        {
+            screenShader->setFloat("vignette", vignette);
+            screenShader->use();
+            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        }
         // -----
         if (wakeup)
         {
@@ -247,12 +255,19 @@ void processGLFWInput(GLFWwindow *window)
     glfwSetInputMode(window, GLFW_STICKY_KEYS, GLFW_FALSE);
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
-    if (glfwGetKey(window, GLFW_KEY_N) == GLFW_PRESS)
-        mpv_command_string(mpv, "playlist-next");
-    if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS)
-        mpv_command_string(mpv, "playlist-prev");
-    if (glfwGetKey(window, GLFW_KEY_O) == GLFW_PRESS)
-        mpv_command_string(mpv, "display-fps");
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+        animation = !animation;
+    if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS)
+        memcpy(quadVertices, quadVertices_orig, sizeof(quadVertices));
+    if (glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS)
+        showfx = !showfx;
+    if (glfwGetKey(window, GLFW_KEY_V) == GLFW_PRESS)
+        vignette += 0.1;
+    if (glfwGetKey(window, GLFW_KEY_B) == GLFW_PRESS)
+    {
+        if (vignette > 0)
+            vignette -= 0.1;
+    }
 }
 
 // Returns the address of the specified function (name) for the given context (ctx)
@@ -265,12 +280,11 @@ static void *get_proc_address(void *ctx, const char *name)
 static void on_mpv_render_update(void *ctx)
 {
     wakeup = 1;
-    // std::cout << "INFO::" << __func__ << std::endl;
 }
 
 static void on_mpv_events(void *ctx)
 {
-    std::cout << "INFO::" << __func__ << std::endl;
+    // std::cout << "INFO::" << __func__ << std::endl;
 }
 
 int nonAffine(float *vertex)
@@ -352,8 +366,9 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height)
     window_width = width;
     glBindTexture(GL_TEXTURE_2D, video_textureColorbuffer);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, window_width, window_height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+
     mpv_fbo.fbo = static_cast<int>(video_framebuffer);
-    mpv_fbo.internal_format = 0; // GL_RGB;
+    mpv_fbo.internal_format = 0;
     mpv_fbo.w = window_width;
     mpv_fbo.h = window_height;
 

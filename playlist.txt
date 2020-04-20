@@ -1,7 +1,0 @@
-#/home/mjw/Videos/costarica-4k-60p.webm 
-assets/test-1080p-60fps.m4v  
-/home/mjw/Videos/EVAM-TL3-fixed.mov
-/home/mjw/Videos/Yoga-3in1-Workout.mp4
-assets/test-2160p-60fps.mp4 
-av://v4l2:/dev/video0
-
