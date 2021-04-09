@@ -10,7 +10,7 @@
 #include <unistd.h>
 #include <mpv/client.h>
 #include <mpv/render_gl.h>
-
+#include <cstring>
 #include <shader.h>
 #include <thread>
 

@@ -37,6 +37,16 @@ int main(int argc, char const *argv[])
 
     // MPV initialization and configuration
     mpv = mpv_create();
+    mpv_set_option_string(mpv, "terminal", "yes");
+   // mpv_set_option_string(mpv, "msg-level", "all=debug");
+    mpv_set_option_string(mpv, "config", "yes");
+    mpv_set_option_string(mpv, "load-scripts", "yes");
+    mpv_set_option_string(mpv, "player-operation-mode", "cplayer");
+
+//    mpv_set_option_string(mpv, "scripts-add", "/home/mjw/Downloads/simple-mpv-webui/webui.lua");
+//    mpv_set_option_string(mpv, "scripts-append", "/home/mjw/Downloads/simple-mpv-webui/webui.lua");
+    mpv_set_option_string(mpv, "script", "webui.lua");
+
     if (mpv_initialize(mpv) < MPV_ERROR_SUCCESS)
     {
         std::cout << "ERROR::MPV::Failed to initialize mpv" << std::endl;
@@ -75,7 +85,8 @@ int main(int argc, char const *argv[])
     mpv_set_option_string(mpv, "vd-lavc-dr", "yes");
     mpv_set_option_string(mpv, "loop", "");
     mpv_set_option_string(mpv, "load-unsafe-playlists", "");
-    mpv_set_option_string(mpv, "terminal", "yes");
+
+
 
     // SHADER creation
 
@@ -128,13 +139,13 @@ int main(int argc, char const *argv[])
     params_fbo[0] = {MPV_RENDER_PARAM_OPENGL_FBO, &mpv_fbo};
     params_fbo[1] = {MPV_RENDER_PARAM_FLIP_Y, &flip_y};
     params_fbo[2] = {MPV_RENDER_PARAM_INVALID, nullptr};
+    mpv_wait_event(mpv,0);
 
     while (!glfwWindowShouldClose(window))
     {
         currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
-
         if (animation)
         {
             quadVertices[0] = sin(currentFrame) / 4. - 0.5;
@@ -363,13 +374,16 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height)
 {
     window_height = height;
     window_width = width;
+    int window_w=800;
+    int window_h=600;
+
     glBindTexture(GL_TEXTURE_2D, video_textureColorbuffer);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, window_width, window_height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, window_w, window_h, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
 
     mpv_fbo.fbo = static_cast<int>(video_framebuffer);
     mpv_fbo.internal_format = 0;
-    mpv_fbo.w = window_width;
-    mpv_fbo.h = window_height;
+    mpv_fbo.w = window_w;
+    mpv_fbo.h = window_h;
 
     int flip_y{0};
     params_fbo[0] = {MPV_RENDER_PARAM_OPENGL_FBO, &mpv_fbo};

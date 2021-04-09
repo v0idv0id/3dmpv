@@ -11,8 +11,11 @@ uniform float vignette;
 void main() {
   // Quick and dirty vignette
   vec2 st = TexCoords.xy / TexCoords.z;
-  vec4 vig = mix(vec4(1., 1., 1., 1.), vec4(0.0, 0.0, 0.0, 1.0),
+vec4 vig = mix(vec4(1., 1., 1., 1.), vec4(0.0, 0.0, 0.0, 1.0),
                       vignette * length(st - vec2(.5, .5)));
+
+
+//  float vig = smoothstep(1.0, 0.0, TexCoords.x);
 
   gl_FragColor = texture(texture1, TexCoords.xy / TexCoords.z) * vig;
 }
