@@ -46,7 +46,7 @@ I recommend compile mpv from scratch using https://github.com/mpv-player/mpv-bui
   * ``` ./rundemo-video-1080p-60p.sh ``` (a FullHD video  @ 60fps)
   * ``` ./rundemo-youtube.sh ```  (This only works if youtube-dl is installed and working!)
   * ``` ./3dmpv myvideofile.mp4 ``` (try with your own video files)
-
+  * To run in borderless fullscreen mode add a "full" at the end of the script name: ``` ./rundemo-video-2160p-60p.sh full```. Press [ESC] to exit.
 ### Keyboard and Mouse
 * [O] Toggle Grid and Corner overlay
 * [V] Increase vignette in non-overlay mode
@@ -54,8 +54,7 @@ I recommend compile mpv from scratch using https://github.com/mpv-player/mpv-bui
 * [A] Toggle animation
 * [F] Reset video to fill-window
 * [ESC] Quit
-
-Corners of the video can be click-and-dragged with the mouse.
+* Corners of the video can be click-and-dragged with the mouse.
 
 
 

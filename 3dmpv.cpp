@@ -1,5 +1,5 @@
 // GNU GPLv3
-// Copyright (c) 2020 v0idv0id - Martin Willner - lvslinux@gmail.com
+// Copyright (c) 2020,2021 v0idv0id - Martin Willner - lvslinux@gmail.com
 
 #include "3dmpv.h"
 
@@ -16,12 +16,20 @@ int main(int argc, char const *argv[])
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_SAMPLES, 4);
 
-    // GLFWmonitor *primary = glfwGetPrimaryMonitor();
-    // const GLFWvidmode *mode = glfwGetVideoMode(primary);
-    // window_width = mode->width;
-    // window_height = mode->height;
-    // if ((window = glfwCreateWindow(window_width, window_height, "3dmpv",  glfwGetPrimaryMonitor(), NULL)) == NULL) // for fullscreen windows
-    if ((window = glfwCreateWindow(window_width, window_height, "3dmpv", NULL, NULL)) == NULL)
+    if (argc == 3)
+    {
+        GLFWmonitor *primary = glfwGetPrimaryMonitor();
+        const GLFWvidmode *mode = glfwGetVideoMode(primary);
+        window_width = mode->width;
+        window_height = mode->height;
+        window = glfwCreateWindow(window_width, window_height, "3dmpv", glfwGetPrimaryMonitor(), NULL); // for borderless fullscreen windows
+    }
+    else
+    {
+        window = glfwCreateWindow(window_width, window_height, "3dmpv", NULL, NULL);
+    }
+
+    if (window == NULL)
     {
         std::cout << "ERROR::GLFW::Failed to create window" << std::endl;
         return -1;
@@ -37,22 +45,27 @@ int main(int argc, char const *argv[])
 
     // MPV initialization and configuration
     mpv = mpv_create();
+    mpv_request_log_messages(mpv, "debug");
     mpv_set_option_string(mpv, "terminal", "yes");
-   // mpv_set_option_string(mpv, "msg-level", "all=debug");
-    mpv_set_option_string(mpv, "config", "yes");
-    mpv_set_option_string(mpv, "load-scripts", "yes");
-    mpv_set_option_string(mpv, "player-operation-mode", "cplayer");
+    mpv_set_option_string(mpv, "config", "no"); // do not load anything from ~/.config/mpv/
+    mpv_set_option_string(mpv, "gpu-api", "opengl");
+    mpv_set_option_string(mpv, "vd-lavc-dr", "yes");
+    mpv_set_option_string(mpv, "hwdec", "auto");
+    mpv_set_option_string(mpv, "vo", "libmpv");
+    mpv_set_option_string(mpv, "loop", "");
+    mpv_set_option_string(mpv, "load-unsafe-playlists", "");
+    mpv_set_option_string(mpv, "load-scripts", "no");
+    // mpv_set_option_string(mpv, "scripts-add", "./webui-page/xwebui.lua");
+    // mpv_set_option_string(mpv, "scripts-append", "./webui-page/xwebui.lua");
+    // mpv_set_option_string(mpv, "script", "xwebui.lua");
 
-//    mpv_set_option_string(mpv, "scripts-add", "/home/mjw/Downloads/simple-mpv-webui/webui.lua");
-//    mpv_set_option_string(mpv, "scripts-append", "/home/mjw/Downloads/simple-mpv-webui/webui.lua");
-    mpv_set_option_string(mpv, "script", "webui.lua");
+ //  mpv_set_option_string(mpv, "msg-level", "all=debug");
 
     if (mpv_initialize(mpv) < MPV_ERROR_SUCCESS)
     {
         std::cout << "ERROR::MPV::Failed to initialize mpv" << std::endl;
         return -1;
     }
-    mpv_request_log_messages(mpv, "debug");
 
     mpv_opengl_init_params opengl_init_params{
         get_proc_address,
@@ -65,7 +78,6 @@ int main(int argc, char const *argv[])
         {MPV_RENDER_PARAM_API_TYPE, const_cast<char *>(MPV_RENDER_API_TYPE_OPENGL)},
         {MPV_RENDER_PARAM_OPENGL_INIT_PARAMS, &opengl_init_params},
         {MPV_RENDER_PARAM_ADVANCED_CONTROL, &adv},
-        {MPV_RENDER_PARAM_BLOCK_FOR_TARGET_TIME, (int)0},
         {MPV_RENDER_PARAM_INVALID, nullptr},
     };
 
@@ -77,16 +89,6 @@ int main(int argc, char const *argv[])
 
     mpv_set_wakeup_callback(mpv, on_mpv_events, NULL);
     mpv_render_context_set_update_callback(mpv_ctx, on_mpv_render_update, NULL);
-
-    const char *cmd[] = {"loadfile", argv[1], NULL};
-    mpv_command(mpv, cmd);
-    mpv_set_option_string(mpv, "gpu-api", "opengl");
-    mpv_set_option_string(mpv, "hwdec", "auto");
-    mpv_set_option_string(mpv, "vd-lavc-dr", "yes");
-    mpv_set_option_string(mpv, "loop", "");
-    mpv_set_option_string(mpv, "load-unsafe-playlists", "");
-
-
 
     // SHADER creation
 
@@ -130,6 +132,7 @@ int main(int argc, char const *argv[])
         std::cout << "ERROR::FRAMEBUFFER:: VIDEO Framebuffer #" << video_framebuffer << "is not complete!" << std::endl;
     glEnable(GL_MULTISAMPLE);
 
+    // parameters of the FBO for mpv_render_context_render(mpv_ctx, params_fbo) which is the actual videoframe -> texture
     mpv_fbo.fbo = static_cast<int>(video_framebuffer);
     mpv_fbo.internal_format = 0;
     mpv_fbo.w = window_width;
@@ -139,10 +142,14 @@ int main(int argc, char const *argv[])
     params_fbo[0] = {MPV_RENDER_PARAM_OPENGL_FBO, &mpv_fbo};
     params_fbo[1] = {MPV_RENDER_PARAM_FLIP_Y, &flip_y};
     params_fbo[2] = {MPV_RENDER_PARAM_INVALID, nullptr};
-    mpv_wait_event(mpv,0);
+
+    const char *cmd[] = {"loadfile", argv[1], NULL};
+    mpv_command(mpv, cmd);
 
     while (!glfwWindowShouldClose(window))
     {
+       // mpv_wait_event(mpv, 0);
+
         currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
@@ -163,11 +170,23 @@ int main(int argc, char const *argv[])
         nonAffine(quadVertices);
         if (wakeup)
         {
+#ifdef DEBUG
+            std::cout << "DEBUG INFO:: wakup=1" << std::endl;
+#endif
             if ((mpv_render_context_update(mpv_ctx) & MPV_RENDER_UPDATE_FRAME))
             {
+#ifdef DEBUG
+                std::cout << "DEBUG INFO:: mpv_render_context_render() has MPV_RENDER_UPDATE_FRAME" << std::endl;
+#endif
                 mpv_render_context_render(mpv_ctx, params_fbo);
                 glViewport(0, 0, window_width, window_height);
             }
+        }
+        else
+        {
+#ifdef DEBUG
+            std::cout << "DEBUG INFO:: wakup=0" << std::endl;
+#endif
         }
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -215,6 +234,7 @@ int main(int argc, char const *argv[])
         }
 
         glfwSwapBuffers(window);
+
         glfwPollEvents();
         usleep(1000);
     }
@@ -231,28 +251,28 @@ void processGLFWInput(GLFWwindow *window)
     glfwGetCursorPos(window, &x, &y);
     if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1) == GLFW_PRESS)
     {
-
-        if (inCircleN(x / window_width * 2 - 1, 1 - y / window_height * 2, 0.1, quadVertices[0], quadVertices[1]) || activecorner == 0)
+        double radius = 0.2;
+        if (inCircleN(x / window_width * 2 - 1, 1 - y / window_height * 2, radius, quadVertices[0], quadVertices[1]) || activecorner == 0)
         {
             quadVertices[0] = x / window_width * 2 - 1;
             quadVertices[1] = 1 - y / window_height * 2;
             activecorner = 0;
         }
-        if (inCircleN(x / window_width * 2 - 1, 1 - y / window_height * 2, 0.1, quadVertices[9], quadVertices[10]) || activecorner == 1)
+        if (inCircleN(x / window_width * 2 - 1, 1 - y / window_height * 2, radius, quadVertices[9], quadVertices[10]) || activecorner == 1)
         {
             quadVertices[9] = x / window_width * 2 - 1;
             quadVertices[10] = 1 - y / window_height * 2;
             activecorner = 1;
         }
 
-        if (inCircleN(x / window_width * 2 - 1, 1 - y / window_height * 2, 0.1, quadVertices[18], quadVertices[19]) || activecorner == 2)
+        if (inCircleN(x / window_width * 2 - 1, 1 - y / window_height * 2, radius, quadVertices[18], quadVertices[19]) || activecorner == 2)
         {
             quadVertices[18] = x / window_width * 2 - 1;
             quadVertices[19] = 1 - y / window_height * 2;
             activecorner = 2;
         }
 
-        if (inCircleN(x / window_width * 2 - 1, 1 - y / window_height * 2, 0.1, quadVertices[27], quadVertices[28]) || activecorner == 3)
+        if (inCircleN(x / window_width * 2 - 1, 1 - y / window_height * 2, radius, quadVertices[27], quadVertices[28]) || activecorner == 3)
         {
             quadVertices[27] = x / window_width * 2 - 1;
             quadVertices[28] = 1 - y / window_height * 2;
@@ -289,12 +309,17 @@ static void *get_proc_address(void *ctx, const char *name)
 
 static void on_mpv_render_update(void *ctx)
 {
+#ifdef DEBUG
+    std::cout << "DEBUG INFO::" << __func__ << std::endl;
+#endif
     wakeup = 1;
 }
 
 static void on_mpv_events(void *ctx)
 {
-    // std::cout << "INFO::" << __func__ << std::endl;
+#ifdef DEBUG
+    std::cout << "DEBUG INFO::" << __func__ << std::endl;
+#endif
 }
 
 int nonAffine(float *vertex)
@@ -365,28 +390,16 @@ int nonAffine(float *vertex)
 
 float inline inCircleN(float x, float y, float r, float x0, float y0)
 {
-    float dx = abs(x - x0);
-    float dy = abs(y - y0);
+    float dx = fabs(x - x0);
+    float dy = fabs(y - y0);
     return (dx * dx + dy * dy <= r * r);
 }
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height)
 {
+#ifdef DEBUG
+    std::cout << "DEBUG INFO::" << __func__ << std::endl;
+#endif
     window_height = height;
     window_width = width;
-    int window_w=800;
-    int window_h=600;
-
-    glBindTexture(GL_TEXTURE_2D, video_textureColorbuffer);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, window_w, window_h, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
-
-    mpv_fbo.fbo = static_cast<int>(video_framebuffer);
-    mpv_fbo.internal_format = 0;
-    mpv_fbo.w = window_w;
-    mpv_fbo.h = window_h;
-
-    int flip_y{0};
-    params_fbo[0] = {MPV_RENDER_PARAM_OPENGL_FBO, &mpv_fbo};
-    params_fbo[1] = {MPV_RENDER_PARAM_FLIP_Y, &flip_y};
-    params_fbo[2] = {MPV_RENDER_PARAM_INVALID, nullptr};
 }
