@@ -55,11 +55,15 @@ int main(int argc, char const *argv[])
     mpv_set_option_string(mpv, "loop", "");
     mpv_set_option_string(mpv, "load-unsafe-playlists", "");
     mpv_set_option_string(mpv, "load-scripts", "no");
+    mpv_set_option_string(mpv, "interpolation", "yes");
+    mpv_set_option_string(mpv, "video-sync", "display-resample");
+    mpv_set_option_string(mpv, "video-timing-offset", "0"); //fixes FPS locked to video FPS
+
     // mpv_set_option_string(mpv, "scripts-add", "./webui-page/xwebui.lua");
     // mpv_set_option_string(mpv, "scripts-append", "./webui-page/xwebui.lua");
     // mpv_set_option_string(mpv, "script", "xwebui.lua");
 
- //  mpv_set_option_string(mpv, "msg-level", "all=debug");
+    //  mpv_set_option_string(mpv, "msg-level", "all=debug");
 
     if (mpv_initialize(mpv) < MPV_ERROR_SUCCESS)
     {
@@ -72,7 +76,7 @@ int main(int argc, char const *argv[])
         nullptr,
         nullptr};
 
-    int adv{1};
+    int adv = 1;
 
     mpv_render_param render_param[]{
         {MPV_RENDER_PARAM_API_TYPE, const_cast<char *>(MPV_RENDER_API_TYPE_OPENGL)},
@@ -134,7 +138,7 @@ int main(int argc, char const *argv[])
 
     // parameters of the FBO for mpv_render_context_render(mpv_ctx, params_fbo) which is the actual videoframe -> texture
     mpv_fbo.fbo = static_cast<int>(video_framebuffer);
-    mpv_fbo.internal_format = 0;
+    mpv_fbo.internal_format = GL_RGB;
     mpv_fbo.w = window_width;
     mpv_fbo.h = window_height;
 
@@ -148,7 +152,7 @@ int main(int argc, char const *argv[])
 
     while (!glfwWindowShouldClose(window))
     {
-       // mpv_wait_event(mpv, 0);
+        // mpv_wait_event(mpv, 0);
 
         currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
@@ -192,6 +196,7 @@ int main(int argc, char const *argv[])
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glDisable(GL_DEPTH_TEST);
         glEnable(GL_MULTISAMPLE);
+
         if (showfx)
         {
             glClearColor(0.0f, 0.0f, 1.0f, 1.0f);
@@ -227,12 +232,12 @@ int main(int argc, char const *argv[])
             glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
         }
         // -----
+
         if (wakeup)
         {
             mpv_render_context_report_swap(mpv_ctx);
             wakeup = 0;
         }
-
         glfwSwapBuffers(window);
 
         glfwPollEvents();
