@@ -21,6 +21,6 @@ void main() {
   } else if (y > 0.5 && y < 0.51) {
     gl_FragColor = vec4(0, 1, 1, 1);
   } else {
-    gl_FragColor = texture(texture1, TexCoords.xy / TexCoords.z);
+    gl_FragColor = texture(texture1, TexCoords.xy / TexCoords.z)-vec4(0, 0, 0, 0.1);;
   }
 }
