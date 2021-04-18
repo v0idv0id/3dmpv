@@ -6,11 +6,12 @@
 in vec3 TexCoords;
 
 uniform sampler2D texture1;
+uniform float trans_alpha;
 
 void main() {
-  // Quick and dirty vignette
-
   float x, y;
+  float alpha;
+  alpha=trans_alpha;
   x = fract(TexCoords.x / TexCoords.z * 4.0);
   y = fract(TexCoords.y / TexCoords.z * 4.0);
 
@@ -21,6 +22,6 @@ void main() {
   } else if (y > 0.5 && y < 0.51) {
     gl_FragColor = vec4(0, 1, 1, 1);
   } else {
-    gl_FragColor = texture(texture1, TexCoords.xy / TexCoords.z)-vec4(0, 0, 0, 0.1);;
+    gl_FragColor = texture(texture1, (TexCoords.xy / TexCoords.z)  )-vec4(0, 0, 0, alpha);;
   }
 }

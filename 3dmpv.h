@@ -40,6 +40,7 @@ float currentFrame;
 bool animation=true;
 bool showfx=true;
 float vignette=0;
+float trans_alpha=0;
 unsigned int cubeVAO, cubeVBO;
 unsigned int quadVAO, quadVBO, quadEBO;
 
@@ -102,5 +103,7 @@ float inline inCircleN(float x, float y, float r, float x0, float y0);
 static void on_mpv_render_update(void *ctx);
 static void on_mpv_events(void *ctx);
 void framebuffer_size_callback(GLFWwindow *window, int width, int height);
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
+void cursor_position_callback(GLFWwindow *window, double xpos, double ypos);
 
 #endif

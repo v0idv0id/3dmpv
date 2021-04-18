@@ -34,9 +34,11 @@ int main(int argc, char const *argv[])
         std::cout << "ERROR::GLFW::Failed to create window" << std::endl;
         return -1;
     }
-
+    glfwSetKeyCallback(window, key_callback);
     glfwMakeContextCurrent(window);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+    glfwSetCursorPosCallback(window, cursor_position_callback);
+
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
     {
         std::cout << "ERROR::GLAD::Failed to initialize GLAD" << std::endl;
@@ -46,7 +48,7 @@ int main(int argc, char const *argv[])
     for (int i = 0; i < MAXINSTANCES; i++)
     {
         mpv[i] = mpv_create();
-
+        activecorner[i] = -1;
         mpv_request_log_messages(mpv[i], "debug");
         mpv_set_option_string(mpv[i], "terminal", "yes");
         mpv_set_option_string(mpv[i], "config", "no"); // do not load anything from ~/.config/mpv/
@@ -100,9 +102,12 @@ int main(int argc, char const *argv[])
     }
     // SHADER creation
 
-    //Shader *screenShader = new Shader("shaders/screen_vs.glsl", "shaders/screen_fs.glsl");
+    Shader *screenShader = new Shader("shaders/screen_vs.glsl", "shaders/screen_fs.glsl");
     Shader *fxShader = new Shader("shaders/fx_vs.glsl", "shaders/fx_fs.glsl");
     Shader pointShader("shaders/point_vs.glsl", "shaders/point_fs.glsl");
+
+    glEnable(GL_DEPTH);
+    glEnable(GL_MULTISAMPLE);
 
     // SCREEN QUAD
     glGenVertexArrays(1, &quadVAO);
@@ -136,6 +141,7 @@ int main(int argc, char const *argv[])
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, video_textureColorbuffer[i], 0);
+
         if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
             std::cout << "ERROR::FRAMEBUFFER:: VIDEO Framebuffer #" << video_framebuffer[i] << "is not complete!" << std::endl;
 
@@ -150,8 +156,7 @@ int main(int argc, char const *argv[])
         params_fbo[i][2] = {MPV_RENDER_PARAM_INVALID, nullptr};
     }
     glEnable(GL_MULTISAMPLE);
-
-    // parameters of the FBO for mpv_render_context_render(mpv_ctx, params_fbo) which is the actual videoframe -> texture
+    glDepthRange(10, -10);
 
     for (int i = 0; i < argc - 1; i++)
     {
@@ -159,14 +164,14 @@ int main(int argc, char const *argv[])
         std::cout << "Loadfile: " << argv[i + 1] << std::endl;
 
         mpv_command(mpv[i], cmd);
+        // const char *s1[]={"add", "volume","-100",NULL};
+        // mpv_command(mpv[i],s1);
         active_instances++;
     }
 
     while (!glfwWindowShouldClose(window))
     {
         processGLFWInput(window);
-        // mpv_wait_event(mpv, 0);
-
         currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
@@ -175,17 +180,22 @@ int main(int argc, char const *argv[])
         {
             if (animation)
             {
-                quadVertices[i][0] = sin(currentFrame+i) / 4. - 0.5;
-                quadVertices[i][1] = cos(currentFrame+i) / 4. - 0.5;
+                quadVertices[i][0] = sin(currentFrame + i) / 4. - 0.8;
+                quadVertices[i][1] = cos(currentFrame + i) / 4. - 0.8;
+                quadVertices[i][2] = cos(currentFrame + i);
+
                 quadVertices[i][9] = sin(currentFrame * 0.2 + i) / 4. + 0.5;
                 quadVertices[i][10] = cos(currentFrame * 0.9 + i) / 4. - 0.5;
+                quadVertices[i][11] = cos(currentFrame + i);
+
                 quadVertices[i][18] = sin(currentFrame * 0.3 + i) / 4. + 0.5;
                 quadVertices[i][19] = cos(currentFrame * 1.1 + i) / 4. + 0.5;
+                quadVertices[i][20] = cos(currentFrame + i);
+
                 quadVertices[i][27] = sin(currentFrame * 0.6 + i) / 4. - 0.5;
                 quadVertices[i][28] = cos(currentFrame * 1.4 + i) / 4. + 0.5;
+                quadVertices[i][29] = cos(currentFrame + i);
             }
-
-            // -----
             nonAffine(quadVertices[i]);
 
             if ((mpv_render_context_update(mpv_ctx[i]) & MPV_RENDER_UPDATE_FRAME))
@@ -211,44 +221,33 @@ int main(int argc, char const *argv[])
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glActiveTexture(GL_TEXTURE0);
-        glDisable(GL_DEPTH_TEST);
+        glEnable(GL_DEPTH_TEST);
 
         for (int i = 0; i < active_instances; i++)
         {
             glEnable(GL_BLEND);
-            //       glBlendFunc (GL_ONE, GL_ONE);
-            //       glBlendFunc(GL_ONE_MINUS_DST_ALPHA,GL_DST_ALPHA);
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
             glBindTexture(GL_TEXTURE_2D, video_textureColorbuffer[i]);
             glBindVertexArray(quadVAO);
             glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
             glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices[i]), &quadVertices[i], GL_STATIC_DRAW);
             glEnable(GL_PROGRAM_POINT_SIZE);
             glEnable(GL_MULTISAMPLE);
-            fxShader->use();
-            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-            pointShader.use();
-            glDrawElements(GL_POINTS, 6, GL_UNSIGNED_INT, 0);
+            if (showfx)
+            {
+                fxShader->use();
+                fxShader->setFloat("trans_alpha", trans_alpha);
+                glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+                pointShader.use();
+                glDrawElements(GL_POINTS, 6, GL_UNSIGNED_INT, 0);
+            }
+            else
+            {
+                screenShader->use();
+                screenShader->setFloat("vignette", vignette);
+                glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+            }
         }
-
-        // glEnable(GL_PROGRAM_POINT_SIZE);
-        // glEnable(GL_MULTISAMPLE);
-        // if (showfx)
-        // {
-        //     fxShader->use();
-        //     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-
-        //     pointShader.use();
-        //     glDrawElements(GL_POINTS, 6, GL_UNSIGNED_INT, 0);
-        // }
-        // else
-        // {
-        //     screenShader->use();
-        //     screenShader->setFloat("vignette", vignette);
-        //     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-        // }
-        // -----
 
         if (wakeup)
         {
@@ -275,12 +274,13 @@ int main(int argc, char const *argv[])
 void processGLFWInput(GLFWwindow *window)
 {
     double x, y;
-    glfwGetCursorPos(window, &x, &y);
+    double radius = 0.1;
+    return;
     if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1) == GLFW_PRESS)
     {
         for (int i = 0; i < active_instances; i++)
         {
-            double radius = 0.2;
+            glfwGetCursorPos(window, &x, &y);
             if (inCircleN(x / window_width * 2 - 1, 1 - y / window_height * 2, radius, quadVertices[i][0], quadVertices[i][1]) || activecorner[i] == 0)
             {
                 quadVertices[i][0] = x / window_width * 2 - 1;
@@ -307,27 +307,11 @@ void processGLFWInput(GLFWwindow *window)
                 quadVertices[i][28] = 1 - y / window_height * 2;
                 activecorner[i] = 3;
             }
-            if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1) == GLFW_RELEASE)
-                activecorner[i] = -1;
         }
     }
-
-    glfwSetInputMode(window, GLFW_STICKY_KEYS, GLFW_FALSE);
-    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-        glfwSetWindowShouldClose(window, true);
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-        animation = !animation;
-    if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS)
-        memcpy(quadVertices, quadVertices_orig, sizeof(quadVertices));
-    if (glfwGetKey(window, GLFW_KEY_O) == GLFW_PRESS)
-        showfx = !showfx;
-    if (glfwGetKey(window, GLFW_KEY_V) == GLFW_PRESS)
-        vignette += 0.2;
-    if (glfwGetKey(window, GLFW_KEY_B) == GLFW_PRESS)
-    {
-        if (vignette > 0)
-            vignette -= 0.2;
-    }
+    if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1) == GLFW_RELEASE)
+        for (int i = 0; i < active_instances; i++)
+            activecorner[i] = -1;
 }
 
 // Returns the address of the specified function (name) for the given context (ctx)
@@ -432,4 +416,82 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height)
 #endif
     window_height = height;
     window_width = width;
+}
+
+void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods)
+{
+
+    glfwSetInputMode(window, GLFW_STICKY_KEYS, GLFW_FALSE);
+
+    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+        glfwSetWindowShouldClose(window, true);
+    if (key == GLFW_KEY_A && action == GLFW_PRESS)
+        animation = !animation;
+    if (key == GLFW_KEY_F && action == GLFW_PRESS)
+    {
+        for (int i = 0; i < MAXINSTANCES; i++)
+            memcpy(quadVertices[i], quadVertices_orig, sizeof(quadVertices_orig));
+    }
+    if (key == GLFW_KEY_O && action == GLFW_PRESS)
+        showfx = !showfx;
+    if (key == GLFW_KEY_V && action == GLFW_PRESS)
+        vignette += 0.2;
+    if (key == GLFW_KEY_B && action == GLFW_PRESS)
+    {
+        if (vignette > 0)
+            vignette -= 0.2;
+    }
+    if (key == GLFW_KEY_N && action == GLFW_PRESS)
+    {
+
+        trans_alpha -= 0.2;
+        if (trans_alpha < 0)
+            trans_alpha = 0;
+    }
+    if (key == GLFW_KEY_M && action == GLFW_PRESS)
+    {
+        trans_alpha += 0.2;
+        if (trans_alpha > 1.0)
+            trans_alpha = 1.0;
+    }
+}
+
+void cursor_position_callback(GLFWwindow *window, double x, double y)
+{
+    float radius=0.05;
+    if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1) == GLFW_PRESS)
+    {
+        for (int i = 0; i < active_instances; i++)
+        {
+            if (inCircleN(x / window_width * 2 - 1, 1 - y / window_height * 2, radius, quadVertices[i][0], quadVertices[i][1]) || activecorner[i] == 0)
+            {
+                quadVertices[i][0] = x / window_width * 2 - 1;
+                quadVertices[i][1] = 1 - y / window_height * 2;
+                activecorner[i] = 0;
+            }
+            if (inCircleN(x / window_width * 2 - 1, 1 - y / window_height * 2, radius, quadVertices[i][9], quadVertices[i][10]) || activecorner[i] == 1)
+            {
+                quadVertices[i][9] = x / window_width * 2 - 1;
+                quadVertices[i][10] = 1 - y / window_height * 2;
+                activecorner[i] = 1;
+            }
+
+            if (inCircleN(x / window_width * 2 - 1, 1 - y / window_height * 2, radius, quadVertices[i][18], quadVertices[i][19]) || activecorner[i] == 2)
+            {
+                quadVertices[i][18] = x / window_width * 2 - 1;
+                quadVertices[i][19] = 1 - y / window_height * 2;
+                activecorner[i] = 2;
+            }
+
+            if (inCircleN(x / window_width * 2 - 1, 1 - y / window_height * 2, radius, quadVertices[i][27], quadVertices[i][28]) || activecorner[i] == 3)
+            {
+                quadVertices[i][27] = x / window_width * 2 - 1;
+                quadVertices[i][28] = 1 - y / window_height * 2;
+                activecorner[i] = 3;
+            }
+        }
+    }
+    if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1) == GLFW_RELEASE)
+        for (int i = 0; i < active_instances; i++)
+            activecorner[i] = -1;
 }
